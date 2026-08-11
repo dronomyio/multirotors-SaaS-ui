@@ -1,0 +1,9 @@
+{
+  "$comment": "Tests live outside the composite build so `tsc --build` stays emit-only. This config is what `pnpm run typecheck` uses, so tests are still type-checked.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src", "test", "scripts"]
+}

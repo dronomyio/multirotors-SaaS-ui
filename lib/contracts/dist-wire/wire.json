@@ -1,0 +1,32 @@
+{
+  "taskQueues": {
+    "graph": "multirotors-graph",
+    "fulfilment": "multirotors-fulfilment"
+  },
+  "workflows": {
+    "configurationSession": "ConfigurationSession",
+    "catalogSync": "CatalogSync",
+    "orderFulfilment": "OrderFulfilment",
+    "runActivity": "RunActivity"
+  },
+  "signals": {
+    "addComponent": "addComponent",
+    "removeComponent": "removeComponent",
+    "applyProposal": "applyProposal",
+    "requestCheckout": "requestCheckout",
+    "abandon": "abandon"
+  },
+  "queries": {
+    "currentConfiguration": "currentConfiguration",
+    "revision": "revision"
+  },
+  "activities": {
+    "searchCandidates": "search_candidates",
+    "resolveComponents": "resolve_components",
+    "assessCompatibility": "assess_compatibility",
+    "priceConfiguration": "price_configuration",
+    "persistConfiguration": "persist_configuration",
+    "syncCatalogPage": "sync_catalog_page",
+    "buildCartUrl": "build_cart_url"
+  }
+}

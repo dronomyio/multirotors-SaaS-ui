@@ -15,5 +15,11 @@
     {
       "path": "./lib/integrations-openai-ai-server"
     },
+    {
+      "path": "./lib/contracts"
+    },
+    {
+      "path": "./lib/mastra"
+    },
   ]
 }

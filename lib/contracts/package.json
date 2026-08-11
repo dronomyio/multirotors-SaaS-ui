@@ -1,0 +1,22 @@
+{
+  "name": "@workspace/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "export-wire": "tsx scripts/export-wire.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "vitest": "^4.1.10"
+  }
+}
