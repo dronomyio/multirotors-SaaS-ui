@@ -1,0 +1,38 @@
+{
+  "$comment": "Project settings. Personal overrides belong in settings.local.json (gitignored).",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm run typecheck)",
+      "Bash(pnpm run build)",
+      "Bash(pnpm --filter * run typecheck)",
+      "Bash(pnpm --filter * run test)",
+      "Bash(pnpm --filter * run export-wire)",
+      "Bash(pnpm --filter * run codegen)",
+      "Bash(uv sync *)",
+      "Bash(uv run pytest*)",
+      "Bash(uv run ruff*)",
+      "Bash(uv run mypy*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Write(**/.env)",
+      "Write(lib/api-zod/src/generated/**)",
+      "Write(lib/api-client-react/src/generated/**)",
+      "Edit(lib/api-zod/src/generated/**)",
+      "Edit(lib/api-client-react/src/generated/**)",
+      "Write(lib/contracts/dist-wire/**)",
+      "Edit(lib/contracts/dist-wire/**)"
+    ],
+    "ask": [
+      "Bash(pnpm --filter @workspace/db run push*)",
+      "Bash(git push*)",
+      "Bash(git commit*)"
+    ]
+  }
+}
