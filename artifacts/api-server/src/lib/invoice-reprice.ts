@@ -61,6 +61,14 @@ interface RestProductLite {
 const INDEX_TTL_MS = 5 * 60 * 1000;
 const MAX_PAGES = 6; // 250/page — covers ~1500 products
 
+/** Raised when Shopify cannot be reached at all. Distinct from "not in catalog". */
+export class CatalogUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CatalogUnavailableError";
+  }
+}
+
 let cache: { at: number; index: Map<string, VariantFacts> } | null = null;
 let inflight: Promise<Map<string, VariantFacts>> | null = null;
 
@@ -80,11 +88,26 @@ async function buildIndex(): Promise<Map<string, VariantFacts>> {
       const res = await fetch(`https://${domain}/products.json?limit=250&page=${page}`, {
         headers: { Accept: "application/json" },
       });
-      if (!res.ok) break;
+      // Shopify returns 200 with an empty array past the end of the catalog, so
+      // a non-ok status is always a real failure — never end-of-pagination.
+      if (!res.ok) {
+        throw new Error(`Shopify products.json returned ${res.status} for page ${page}`);
+      }
       products = ((await res.json()) as { products?: RestProductLite[] }).products ?? [];
     } catch (err) {
       logger.error({ err, page }, "variant index page fetch failed");
-      break;
+      // THROW, do not break.
+      //
+      // Returning a partial index here was a real bug: an empty index made every
+      // store line resolve as `unknown_variant`, and `unknown_variant` falls back
+      // to the model's price — so an unreachable Shopify silently served exactly
+      // the invented numbers this module exists to eliminate. Callers must be
+      // able to tell "no catalog" apart from "catalog says this doesn't exist".
+      throw new CatalogUnavailableError(
+        `could not build variant index (page ${page}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     }
     if (products.length === 0) break;
 
@@ -104,6 +127,19 @@ async function buildIndex(): Promise<Map<string, VariantFacts>> {
 
   logger.info({ variants: index.size }, "built Shopify variant price index");
   return index;
+}
+
+/**
+ * Drop the cached index so the next read rebuilds.
+ *
+ * Note this is *not* the same as `getVariantIndex(force: true)`: a forced
+ * rebuild that fails leaves the previous good index in place, which is the right
+ * behaviour in production — a transient Shopify blip should not invalidate
+ * prices we fetched ninety seconds ago. This clears it outright, for tests and
+ * for the case where you know the catalog changed underneath you.
+ */
+export function resetVariantIndex(): void {
+  cache = null;
 }
 
 /** Cached, single-flight. Also usable to back product search, which currently refetches 500 products per call. */
@@ -281,3 +317,66 @@ export function toLegacyInvoice(r: RepricedInvoice, original: Invoice): Invoice 
     currency: r.currency,
   };
 }
+
+// ─── Route-facing wrapper ─────────────────────────────────────────────────────
+
+export type RepriceOutcome =
+  | { status: "verified"; invoice: Invoice; corrections: string[] }
+  | { status: "corrected"; invoice: Invoice; corrections: string[] }
+  /** Shopify unreachable or the cache could not be built. No prices are safe to show. */
+  | { status: "unverified"; invoice: null; reason: string };
+
+/**
+ * What the route calls. Never throws.
+ *
+ * The important case is `unverified`: if we cannot reach Shopify, the correct
+ * behaviour is to show NO prices, not the model's. Falling back to the model's
+ * numbers is precisely the defect this module exists to close, and a fallback
+ * is exactly where that kind of bug creeps back in.
+ *
+ * `corrected` is not surfaced to the customer — they never saw the wrong
+ * number, so there is nothing to explain. It is logged loudly for us, because a
+ * rising correction rate means the model is drifting from the catalog.
+ */
+export async function safeReprice(invoice: Invoice): Promise<RepriceOutcome> {
+  try {
+    const repriced = await repriceInvoice(invoice);
+
+    // A store line we cannot identify still carries the model's price, because
+    // there is nothing else to put there. One unidentifiable component is enough
+    // to make the whole quote untrustworthy — for a $7,000 build, refusing to
+    // quote beats quoting around a part we cannot name.
+    const unidentified = repriced.lines.filter((l) => l.status === "unknown_variant");
+    if (unidentified.length > 0) {
+      logger.error(
+        { handles: unidentified.map((l) => l.item.title) },
+        "invoice references store items absent from the catalog; withholding quote",
+      );
+      return {
+        status: "unverified",
+        invoice: null,
+        reason: `${unidentified.length} item(s) claimed as in-store are not in the catalog`,
+      };
+    }
+
+    const corrected = toLegacyInvoice(repriced, invoice);
+    return {
+      status: repriced.diverged ? "corrected" : "verified",
+      invoice: corrected,
+      corrections: repriced.corrections,
+    };
+  } catch (err) {
+    logger.error({ err }, "repricing failed; withholding prices rather than serving model output");
+    return {
+      status: "unverified",
+      invoice: null,
+      reason: err instanceof Error ? err.message : "unknown error",
+    };
+  }
+}
+
+/** Appended to the assistant's reply when prices could not be verified. */
+export const UNVERIFIED_PRICING_NOTE =
+  "\n\nI couldn't reach the store to confirm current pricing, so I've left the " +
+  "quote off rather than show figures I can't stand behind. Ask me again in a " +
+  "moment and I'll put the numbers together.";

@@ -158,3 +158,74 @@ describe("legacy projection", () => {
     expect(legacy.estimatedDeliveryDays).toBe(4);
   });
 });
+
+// ─── safeReprice: the route-facing contract ───────────────────────────────────
+
+describe("safeReprice", () => {
+  it("reports verified when the model's prices were already right", async () => {
+    const { safeReprice } = await import("../src/invoice-reprice");
+    const out = await safeReprice(
+      invoice([{ title: "VOXL 2", price: 1299, quantity: 1, source: "store", variantId: "111" }]),
+    );
+    expect(out.status).toBe("verified");
+    expect(out.invoice?.items[0].price).toBe(1299);
+  });
+
+  it("reports corrected and returns Shopify's price, not the model's", async () => {
+    const { safeReprice } = await import("../src/invoice-reprice");
+    const out = await safeReprice(
+      invoice([{ title: "VOXL 2", price: 499, quantity: 1, source: "store", variantId: "111" }]),
+    );
+    expect(out.status).toBe("corrected");
+    if (out.status !== "corrected") throw new Error("unreachable");
+    expect(out.invoice.items[0].price).toBe(1299);
+    expect(out.corrections[0]).toContain("$1,299.00");
+  });
+
+  it("withholds prices entirely when Shopify is unreachable", async () => {
+    const { resetVariantIndex, safeReprice } = await import("../src/invoice-reprice");
+    resetVariantIndex();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNREFUSED"); }));
+
+    const out = await safeReprice(
+      invoice([{ title: "VOXL 2", price: 499, quantity: 1, source: "store", variantId: "111" }]),
+    );
+    // The critical assertion: no fallback to the model's number.
+    expect(out.status).toBe("unverified");
+    expect(out.invoice).toBeNull();
+  });
+
+  it("never throws — the route must always be able to reply", async () => {
+    const { resetVariantIndex, safeReprice } = await import("../src/invoice-reprice");
+    resetVariantIndex();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("boom"); }));
+    await expect(
+      safeReprice(invoice([{ title: "X", price: 1, quantity: 1, source: "store", variantId: "111" }])),
+    ).resolves.toBeDefined();
+  });
+
+  it("withholds the quote when a store item is not in the catalog", async () => {
+    const { safeReprice } = await import("../src/invoice-reprice");
+    const out = await safeReprice(
+      invoice([{ title: "Ghost Drone", price: 999, quantity: 1, source: "store", variantId: "999" }]),
+    );
+    // Refusing to quote beats quoting around a component we cannot name.
+    expect(out.status).toBe("unverified");
+    expect(out.invoice).toBeNull();
+  });
+});
+
+describe("cache resilience", () => {
+  it("keeps serving the last good index when a forced refresh fails", async () => {
+    const { getVariantIndex, repriceInvoice } = await import("../src/invoice-reprice");
+    // beforeEach built a good index. Now Shopify goes away.
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNREFUSED"); }));
+    await expect(getVariantIndex(true)).rejects.toThrow();
+
+    // A transient blip must not invalidate prices fetched ninety seconds ago.
+    const r = await repriceInvoice(
+      invoice([{ title: "VOXL 2", price: 499, quantity: 1, source: "store", variantId: "111" }]),
+    );
+    expect(r.lines[0].unitPriceCents).toBe(129900);
+  });
+});

@@ -3,6 +3,8 @@ import { desc, eq } from "drizzle-orm";
 import { db, conversations, messages } from "@workspace/db";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { runDroneAgent } from "../../lib/agent";
+import { UNVERIFIED_PRICING_NOTE, safeReprice } from "../../lib/invoice-reprice";
+import { logger } from "../../lib/logger";
 
 const router: IRouter = Router();
 
@@ -160,27 +162,64 @@ router.post(
       emit({ type: "status", message: msg })
     );
 
+    // Reprice against Shopify BEFORE streaming the reply.
+    //
+    // The agent's generateProFormaInvoice tool returns the model's own arguments
+    // verbatim, so every figure on `invoice` is model output that merely passed a
+    // shape check. Nothing here may reach the customer until Shopify has
+    // confirmed it.
+    //
+    // This runs before the text streams so a pricing failure can be explained in
+    // the reply itself. It is one cached read in the common case — the variant
+    // index is TTL-cached and single-flight.
+    let quote = invoice;
+    let outgoingText = text;
+
+    if (invoice) {
+      emit({ type: "status", message: "Confirming current pricing..." });
+      const outcome = await safeReprice(invoice);
+
+      if (outcome.status === "unverified") {
+        // Withhold the quote rather than fall back to the model's numbers.
+        // A fallback here would quietly reintroduce the exact bug this closes.
+        quote = null;
+        outgoingText = text + UNVERIFIED_PRICING_NOTE;
+      } else {
+        quote = outcome.invoice;
+        if (outcome.status === "corrected") {
+          // Not surfaced to the customer: they never saw the wrong number, so
+          // there is nothing to explain. Logged because a rising correction
+          // rate means the model is drifting from the catalog.
+          logger.warn(
+            { conversationId, corrections: outcome.corrections },
+            "AI invoice diverged from Shopify; served corrected prices"
+          );
+        }
+      }
+    }
+
     // Stream text in small chunks for a typing effect
     const CHUNK = 4;
-    for (let i = 0; i < text.length; i += CHUNK) {
+    for (let i = 0; i < outgoingText.length; i += CHUNK) {
       res.write(
-        `data: ${JSON.stringify({ type: "text", content: text.slice(i, i + CHUNK) })}\n\n`
+        `data: ${JSON.stringify({ type: "text", content: outgoingText.slice(i, i + CHUNK) })}\n\n`
       );
     }
 
     // Emit composition invoice if present
-    if (invoice) {
+    if (quote) {
       res.write(
-        `data: ${JSON.stringify({ type: "composition", data: invoice })}\n\n`
+        `data: ${JSON.stringify({ type: "composition", data: quote })}\n\n`
       );
     }
 
-    // Persist assistant response (with optional invoice metadata)
+    // Persist the CORRECTED invoice. Storing the model's version would leave a
+    // wrong price in messages.metadata for every client that later reads it back.
     await db.insert(messages).values({
       conversationId,
       role: "assistant",
-      content: text,
-      metadata: invoice ?? null,
+      content: outgoingText,
+      metadata: quote ?? null,
     });
 
     res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
