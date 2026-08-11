@@ -21403,7 +21403,7 @@ var require_application = __commonJS({
       return this;
     };
     app2.render = function render(name, options, callback) {
-      var cache = this.cache;
+      var cache2 = this.cache;
       var done = callback;
       var engines = this.engines;
       var opts = options;
@@ -21417,7 +21417,7 @@ var require_application = __commonJS({
         renderOptions.cache = this.enabled("view cache");
       }
       if (renderOptions.cache) {
-        view = cache[name];
+        view = cache2[name];
       }
       if (!view) {
         var View3 = this.get("view");
@@ -21433,7 +21433,7 @@ var require_application = __commonJS({
           return done(err);
         }
         if (renderOptions.cache) {
-          cache[name] = view;
+          cache2[name] = view;
         }
       }
       tryRender(view, renderOptions, done);
@@ -27161,12 +27161,12 @@ var require_levels = __commonJS({
     function genLsCache(instance) {
       const formatter = instance[formattersSym].level;
       const { labels } = instance.levels;
-      const cache = {};
+      const cache2 = {};
       for (const label in labels) {
         const level = formatter(labels[label], Number(label));
-        cache[label] = JSON.stringify(level).slice(0, -1);
+        cache2[label] = JSON.stringify(level).slice(0, -1);
       }
-      instance[lsCacheSym] = cache;
+      instance[lsCacheSym] = cache2;
       return instance;
     }
     function isStandardLevel(level, useOnlyCustomLevels) {
@@ -28317,7 +28317,7 @@ var require_pino = __commonJS({
     function pinoBundlerAbsolutePath(p) {
       try {
         const path2 = __require("path");
-        const outputDir = "/home/runner/workspace/artifacts/api-server/dist";
+        const outputDir = "/Users/macmachine/tools/drone_project_idea/Blogs/multirotors_store_web/multirotors-SaaS-ui/artifacts/api-server/dist";
         return path2.resolve(outputDir, p.replace(/^\.\//, ""));
       } catch (e) {
         const f = new Function("p", "return new URL(p, import.meta.url).pathname");
@@ -44610,12 +44610,12 @@ async function hashQuery(sql2, params) {
 
 // ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/session.js
 var PgPreparedQuery = class {
-  constructor(query, cache, queryMetadata, cacheConfig) {
+  constructor(query, cache2, queryMetadata, cacheConfig) {
     this.query = query;
-    this.cache = cache;
+    this.cache = cache2;
     this.queryMetadata = queryMetadata;
     this.cacheConfig = cacheConfig;
-    if (cache && cache.strategy() === "all" && cacheConfig === void 0) {
+    if (cache2 && cache2.strategy() === "all" && cacheConfig === void 0) {
       this.cacheConfig = { enable: true, autoInvalidate: true };
     }
     if (!this.cacheConfig?.enable) {
@@ -44771,8 +44771,8 @@ var PgTransaction = class extends PgDatabase {
 // ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/node-postgres/session.js
 var { Pool: Pool2, types: types2 } = esm_default;
 var NodePgPreparedQuery = class extends PgPreparedQuery {
-  constructor(client, queryString, params, logger2, cache, queryMetadata, cacheConfig, fields, name, _isResponseInArrayMode, customResultMapper) {
-    super({ sql: queryString, params }, cache, queryMetadata, cacheConfig);
+  constructor(client, queryString, params, logger2, cache2, queryMetadata, cacheConfig, fields, name, _isResponseInArrayMode, customResultMapper) {
+    super({ sql: queryString, params }, cache2, queryMetadata, cacheConfig);
     this.client = client;
     this.queryString = queryString;
     this.params = params;
@@ -67963,6 +67963,193 @@ async function runDroneAgent(conversationHistory, onStatus) {
   };
 }
 
+// src/lib/invoice-reprice.ts
+function centsFromShopify(price) {
+  const m = /^(\d+)(?:\.(\d{1,2}))?$/.exec(price.trim());
+  if (!m) return null;
+  const whole = Number(m[1]);
+  const frac = (m[2] ?? "").padEnd(2, "0");
+  return whole * 100 + Number(frac);
+}
+var centsFromDollars = (n) => Math.round(n * 100);
+var dollarsFromCents = (c) => c / 100;
+var INDEX_TTL_MS = 5 * 60 * 1e3;
+var MAX_PAGES = 6;
+var CatalogUnavailableError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CatalogUnavailableError";
+  }
+};
+var cache = null;
+var inflight = null;
+function storeDomain2() {
+  const raw = process.env.SHOPIFY_STORE_DOMAIN ?? "";
+  const cleaned = raw.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  return cleaned.includes(".") ? cleaned : "multirotors.store";
+}
+async function buildIndex() {
+  const domain2 = storeDomain2();
+  const index = /* @__PURE__ */ new Map();
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    let products = [];
+    try {
+      const res = await fetch(`https://${domain2}/products.json?limit=250&page=${page}`, {
+        headers: { Accept: "application/json" }
+      });
+      if (!res.ok) {
+        throw new Error(`Shopify products.json returned ${res.status} for page ${page}`);
+      }
+      products = (await res.json()).products ?? [];
+    } catch (err) {
+      logger.error({ err, page }, "variant index page fetch failed");
+      throw new CatalogUnavailableError(
+        `could not build variant index (page ${page}): ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    if (products.length === 0) break;
+    for (const p of products) {
+      for (const v of p.variants ?? []) {
+        const priceCents = centsFromShopify(v.price);
+        if (priceCents === null) continue;
+        index.set(String(v.id), {
+          priceCents,
+          available: v.available,
+          title: p.title,
+          handle: p.handle
+        });
+      }
+    }
+  }
+  logger.info({ variants: index.size }, "built Shopify variant price index");
+  return index;
+}
+async function getVariantIndex(force = false) {
+  const fresh = cache && Date.now() - cache.at < INDEX_TTL_MS;
+  if (!force && fresh) return cache.index;
+  if (inflight) return inflight;
+  inflight = buildIndex().then((index) => {
+    cache = { at: Date.now(), index };
+    return index;
+  }).finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+var TAX_RATE_BPS = 850;
+var FREE_SHIPPING_THRESHOLD_CENTS = 5e4;
+var FLAT_SHIPPING_CENTS = 2500;
+async function repriceInvoice(invoice) {
+  const index = await getVariantIndex();
+  const lines = [];
+  const corrections = [];
+  for (const item of invoice.items) {
+    const qty = Math.max(1, Math.trunc(item.quantity));
+    if (item.source !== "store") {
+      const cents = centsFromDollars(item.price);
+      lines.push({
+        item,
+        status: "external",
+        unitPriceCents: cents,
+        lineTotalCents: cents * qty
+      });
+      continue;
+    }
+    const facts = item.variantId ? index.get(item.variantId.split("/").pop() ?? "") : void 0;
+    if (!facts) {
+      const cents = centsFromDollars(item.price);
+      corrections.push(`"${item.title}" is listed as an in-store item but its variant is not in the catalog.`);
+      lines.push({ item, status: "unknown_variant", unitPriceCents: cents, lineTotalCents: cents * qty });
+      continue;
+    }
+    const claimed = centsFromDollars(item.price);
+    const status = !facts.available ? "unavailable" : facts.priceCents === claimed ? "verified" : "corrected";
+    if (status === "corrected") {
+      corrections.push(
+        `"${item.title}": quoted ${fmt(claimed)}, actual Shopify price ${fmt(facts.priceCents)}.`
+      );
+    }
+    if (status === "unavailable") {
+      corrections.push(`"${item.title}" is not currently purchasable.`);
+    }
+    lines.push({
+      item,
+      status,
+      unitPriceCents: facts.priceCents,
+      lineTotalCents: facts.priceCents * qty,
+      ...status === "corrected" ? { claimedUnitPriceCents: claimed } : {}
+    });
+  }
+  const storeLines = lines.filter((l) => l.status !== "external");
+  const externalLines = lines.filter((l) => l.status === "external");
+  const storeSubtotalCents = storeLines.reduce((s, l) => s + l.lineTotalCents, 0);
+  const externalSubtotalCents = externalLines.reduce((s, l) => s + l.lineTotalCents, 0);
+  const storeTaxCents = Math.round(storeSubtotalCents * TAX_RATE_BPS / 1e4);
+  const storeShippingCents = storeSubtotalCents === 0 || storeSubtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_SHIPPING_CENTS;
+  const storeTotalCents = storeSubtotalCents + storeTaxCents + storeShippingCents;
+  const diverged = storeLines.some((l) => l.status !== "verified");
+  const purchasable = storeLines.length > 0 && storeLines.every((l) => l.status === "verified" || l.status === "corrected");
+  if (diverged) {
+    logger.warn({ corrections }, "AI invoice diverged from Shopify catalog; served corrected prices");
+  }
+  return {
+    lines,
+    storeSubtotalCents,
+    storeTaxCents,
+    storeShippingCents,
+    storeTotalCents,
+    externalSubtotalCents,
+    grandTotalCents: storeTotalCents + externalSubtotalCents,
+    currency: "USD",
+    diverged,
+    corrections,
+    purchasable
+  };
+}
+var fmt = (cents) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+function toLegacyInvoice(r, original) {
+  return {
+    ...original,
+    items: r.lines.map((l) => ({ ...l.item, price: dollarsFromCents(l.unitPriceCents) })),
+    subtotal: dollarsFromCents(r.storeSubtotalCents + r.externalSubtotalCents),
+    tax: dollarsFromCents(r.storeTaxCents),
+    shipping: dollarsFromCents(r.storeShippingCents),
+    total: dollarsFromCents(r.grandTotalCents),
+    currency: r.currency
+  };
+}
+async function safeReprice(invoice) {
+  try {
+    const repriced = await repriceInvoice(invoice);
+    const unidentified = repriced.lines.filter((l) => l.status === "unknown_variant");
+    if (unidentified.length > 0) {
+      logger.error(
+        { handles: unidentified.map((l) => l.item.title) },
+        "invoice references store items absent from the catalog; withholding quote"
+      );
+      return {
+        status: "unverified",
+        invoice: null,
+        reason: `${unidentified.length} item(s) claimed as in-store are not in the catalog`
+      };
+    }
+    const corrected = toLegacyInvoice(repriced, invoice);
+    return {
+      status: repriced.diverged ? "corrected" : "verified",
+      invoice: corrected,
+      corrections: repriced.corrections
+    };
+  } catch (err) {
+    logger.error({ err }, "repricing failed; withholding prices rather than serving model output");
+    return {
+      status: "unverified",
+      invoice: null,
+      reason: err instanceof Error ? err.message : "unknown error"
+    };
+  }
+}
+var UNVERIFIED_PRICING_NOTE = "\n\nI couldn't reach the store to confirm current pricing, so I've left the quote off rather than show figures I can't stand behind. Ask me again in a moment and I'll put the numbers together.";
+
 // src/routes/openai/index.ts
 var router2 = (0, import_express2.Router)();
 router2.get("/openai/conversations", async (req, res) => {
@@ -68058,17 +68245,35 @@ router2.post(
       chatHistory,
       (msg) => emit({ type: "status", message: msg })
     );
+    let quote = invoice;
+    let outgoingText = text2;
+    if (invoice) {
+      emit({ type: "status", message: "Confirming current pricing..." });
+      const outcome = await safeReprice(invoice);
+      if (outcome.status === "unverified") {
+        quote = null;
+        outgoingText = text2 + UNVERIFIED_PRICING_NOTE;
+      } else {
+        quote = outcome.invoice;
+        if (outcome.status === "corrected") {
+          logger.warn(
+            { conversationId, corrections: outcome.corrections },
+            "AI invoice diverged from Shopify; served corrected prices"
+          );
+        }
+      }
+    }
     const CHUNK = 4;
-    for (let i = 0; i < text2.length; i += CHUNK) {
+    for (let i = 0; i < outgoingText.length; i += CHUNK) {
       res.write(
-        `data: ${JSON.stringify({ type: "text", content: text2.slice(i, i + CHUNK) })}
+        `data: ${JSON.stringify({ type: "text", content: outgoingText.slice(i, i + CHUNK) })}
 
 `
       );
     }
-    if (invoice) {
+    if (quote) {
       res.write(
-        `data: ${JSON.stringify({ type: "composition", data: invoice })}
+        `data: ${JSON.stringify({ type: "composition", data: quote })}
 
 `
       );
@@ -68076,8 +68281,8 @@ router2.post(
     await db.insert(messages).values({
       conversationId,
       role: "assistant",
-      content: text2,
-      metadata: invoice ?? null
+      content: outgoingText,
+      metadata: quote ?? null
     });
     res.write(`data: ${JSON.stringify({ type: "done" })}
 

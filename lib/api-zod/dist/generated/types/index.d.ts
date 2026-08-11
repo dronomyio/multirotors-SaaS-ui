@@ -16,4 +16,5 @@ export * from './openaiConversationWithMessages';
 export * from './openaiError';
 export * from './openaiMessage';
 export * from './openaiMessageInput';
+export * from './openaiMessageMetadata';
 //# sourceMappingURL=index.d.ts.map

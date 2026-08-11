@@ -5,11 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OpenaiMessageMetadata } from './openaiMessageMetadata';
 export interface OpenaiMessage {
     id: number;
     conversationId: number;
     role: string;
     content: string;
+    metadata?: OpenaiMessageMetadata;
     createdAt: Date;
 }
 //# sourceMappingURL=openaiMessage.d.ts.map

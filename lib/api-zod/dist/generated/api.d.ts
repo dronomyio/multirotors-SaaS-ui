@@ -88,6 +88,7 @@ export declare const GetOpenaiConversationResponse: zod.ZodObject<{
         conversationId: zod.ZodNumber;
         role: zod.ZodString;
         content: zod.ZodString;
+        metadata: zod.ZodOptional<zod.ZodNullable<zod.ZodRecord<zod.ZodString, zod.ZodUnknown>>>;
         createdAt: zod.ZodDate;
     }, "strip", zod.ZodTypeAny, {
         id: number;
@@ -95,12 +96,14 @@ export declare const GetOpenaiConversationResponse: zod.ZodObject<{
         conversationId: number;
         role: string;
         content: string;
+        metadata?: Record<string, unknown> | null | undefined;
     }, {
         id: number;
         createdAt: Date;
         conversationId: number;
         role: string;
         content: string;
+        metadata?: Record<string, unknown> | null | undefined;
     }>, "many">;
 }, "strip", zod.ZodTypeAny, {
     id: number;
@@ -112,6 +115,7 @@ export declare const GetOpenaiConversationResponse: zod.ZodObject<{
         conversationId: number;
         role: string;
         content: string;
+        metadata?: Record<string, unknown> | null | undefined;
     }[];
 }, {
     id: number;
@@ -123,6 +127,7 @@ export declare const GetOpenaiConversationResponse: zod.ZodObject<{
         conversationId: number;
         role: string;
         content: string;
+        metadata?: Record<string, unknown> | null | undefined;
     }[];
 }>;
 /**
@@ -151,6 +156,7 @@ export declare const ListOpenaiMessagesResponseItem: zod.ZodObject<{
     conversationId: zod.ZodNumber;
     role: zod.ZodString;
     content: zod.ZodString;
+    metadata: zod.ZodOptional<zod.ZodNullable<zod.ZodRecord<zod.ZodString, zod.ZodUnknown>>>;
     createdAt: zod.ZodDate;
 }, "strip", zod.ZodTypeAny, {
     id: number;
@@ -158,18 +164,21 @@ export declare const ListOpenaiMessagesResponseItem: zod.ZodObject<{
     conversationId: number;
     role: string;
     content: string;
+    metadata?: Record<string, unknown> | null | undefined;
 }, {
     id: number;
     createdAt: Date;
     conversationId: number;
     role: string;
     content: string;
+    metadata?: Record<string, unknown> | null | undefined;
 }>;
 export declare const ListOpenaiMessagesResponse: zod.ZodArray<zod.ZodObject<{
     id: zod.ZodNumber;
     conversationId: zod.ZodNumber;
     role: zod.ZodString;
     content: zod.ZodString;
+    metadata: zod.ZodOptional<zod.ZodNullable<zod.ZodRecord<zod.ZodString, zod.ZodUnknown>>>;
     createdAt: zod.ZodDate;
 }, "strip", zod.ZodTypeAny, {
     id: number;
@@ -177,12 +186,14 @@ export declare const ListOpenaiMessagesResponse: zod.ZodArray<zod.ZodObject<{
     conversationId: number;
     role: string;
     content: string;
+    metadata?: Record<string, unknown> | null | undefined;
 }, {
     id: number;
     createdAt: Date;
     conversationId: number;
     role: string;
     content: string;
+    metadata?: Record<string, unknown> | null | undefined;
 }>, "many">;
 /**
  * @summary Send a message to the drone composer agent — returns SSE stream

@@ -13,11 +13,15 @@ export interface OpenaiConversation {
     title: string;
     createdAt: string;
 }
+export type OpenaiMessageMetadata = {
+    [key: string]: unknown;
+} | null;
 export interface OpenaiMessage {
     id: number;
     conversationId: number;
     role: string;
     content: string;
+    metadata?: OpenaiMessageMetadata;
     createdAt: string;
 }
 export interface OpenaiConversationInput {
