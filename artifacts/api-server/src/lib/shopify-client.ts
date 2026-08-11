@@ -46,6 +46,11 @@ interface RestProduct {
   variants: RestVariant[];
   images: Array<{ src: string }>;
   currency?: string;
+  // Read by searchShopifyProducts for keyword scoring; both are present on the
+  // public products.json payload but were previously undeclared, which made
+  // `pnpm run typecheck` — and therefore `pnpm run build` — fail.
+  product_type?: string;
+  vendor?: string;
 }
 
 interface RestCollection {
