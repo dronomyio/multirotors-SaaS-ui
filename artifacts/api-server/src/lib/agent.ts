@@ -300,7 +300,12 @@ export async function runDroneAgent(
       ...({ reasoning_effort: "none" } as any),
     });
 
-    const msg = response.choices[0].message;
+    const choice = response.choices[0];
+    if (!choice) {
+      logger.error("OpenAI returned no choices");
+      return { text: "I wasn't able to get a response. Please try again.", invoice: null };
+    }
+    const msg = choice.message;
     // Push assistant message before tool results
     messages.push(msg as ChatCompletionMessageParam);
 
@@ -311,6 +316,21 @@ export async function runDroneAgent(
 
     // Execute all tool calls (sequential to maintain message order)
     for (const tc of msg.tool_calls) {
+      // openai v6 widened tool_calls to a union of function and *custom* tool
+      // calls, and only the function variant carries `.function`. We register no
+      // custom tools, so this is unreachable — but skipping silently would
+      // strand the loop waiting on a tool result that never arrives, so answer
+      // the call before moving on.
+      if (tc.type !== "function") {
+        logger.warn({ type: tc.type, id: tc.id }, "ignoring non-function tool call");
+        messages.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: JSON.stringify({ error: "unsupported tool call type" }),
+        });
+        continue;
+      }
+
       const statusMap: Record<string, string> = {
         searchShopifyCatalog: "Searching store catalog...",
         listCategories: "Browsing store collections...",
