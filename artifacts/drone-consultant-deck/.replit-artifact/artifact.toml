@@ -1,0 +1,28 @@
+kind = "slides"
+previewPath = "/drone-consultant-deck/"
+title = "Drone Consultant Tech Deck"
+description = "Internal technical overview of the multirotors.store AI drone shopping assistant — architecture, agent tools, SSE streaming, Shopify integration, database schema, and codegen pipeline."
+version = "1.0.0"
+id = "artifacts/drone-consultant-deck"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/drone-consultant-deck/" ]
+localPort = 18415
+
+[services.development]
+run = "pnpm --filter @workspace/drone-consultant-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/drone-consultant-deck", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/drone-consultant-deck/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18415"
+BASE_PATH = "/drone-consultant-deck/"

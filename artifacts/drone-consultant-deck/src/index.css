@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-primary: var(--slide-primary);
+  --color-accent: var(--slide-accent);
+  --color-bg: var(--slide-bg);
+  --color-text: var(--slide-text);
+  --color-muted: var(--slide-muted);
+  --font-display: var(--font-display-family);
+  --font-body: var(--font-body-family);
+  --font-mono: var(--font-mono-family);
+}
+
+:root {
+  /* Tokyo Night palette */
+  --slide-primary: #7AA2F7;
+  --slide-accent: #9ECE6A;
+  --slide-bg: #1A1B26;
+  --slide-text: #C0CAF5;
+  --slide-muted: #565F89;
+  --font-display-family: 'Inter', system-ui, sans-serif;
+  --font-body-family: 'Inter', system-ui, sans-serif;
+  --font-mono-family: 'DM Mono', 'Fira Code', monospace;
+  color-scheme: dark;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--slide-bg);
+  color: var(--slide-text);
+  font-family: var(--font-display-family);
+}
+
+.slide {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.slide-viewer {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}

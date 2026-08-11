@@ -1,0 +1,90 @@
+[
+  {
+    "id": "a1f2e3d4-0001-4a00-b000-000000000001",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide01Title.tsx",
+    "title": "multirotors.store — AI Drone Consultant",
+    "description": "Title slide — project overview, POST endpoint, SSE event types, and 4 agent tools",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0002-4a00-b000-000000000002",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide02Architecture.tsx",
+    "title": "System Architecture",
+    "description": "Seven services: React+Vite, Express API, OpenAI, Shopify Storefront, Shopify Admin, Tavily, Postgres",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0003-4a00-b000-000000000003",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide03ChatSSE.tsx",
+    "title": "Chat UI & SSE Streaming",
+    "description": "Frontend chat page, native fetch ReadableStream, three SSE event types, status events",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0004-4a00-b000-000000000004",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide04AgentTools.tsx",
+    "title": "AI Agent: Tool Chain",
+    "description": "Four function-calling tools, gpt-5.6-terra with reasoning_effort:none, up to 8 iterations",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0005-4a00-b000-000000000005",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide05InvoiceComposer.tsx",
+    "title": "Pro-Forma Invoice Composer",
+    "description": "InvoiceCard component, __INVOICE__ extraction pattern, metadata jsonb persistence, Buy Now CTA",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0006-4a00-b000-000000000006",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide06Shopify.tsx",
+    "title": "Shopify Integration",
+    "description": "Storefront API GraphQL for search, Admin API via Replit connector proxy for Draft Orders",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0007-4a00-b000-000000000007",
+    "position": 7,
+    "filepath": "src/pages/slides/Slide07Endpoint.tsx",
+    "title": "POST /messages — Full SSE Endpoint Flow",
+    "description": "9-step flow from request validation through SSE streaming to DB persistence",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0008-4a00-b000-000000000008",
+    "position": 8,
+    "filepath": "src/pages/slides/Slide08Database.tsx",
+    "title": "Database Schema",
+    "description": "conversations and messages tables with jsonb metadata, Drizzle ORM, codegen overview",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0009-4a00-b000-000000000009",
+    "position": 9,
+    "filepath": "src/pages/slides/Slide09Codegen.tsx",
+    "title": "Codegen Pipeline",
+    "description": "openapi.yaml → Orval 8 → api-client-react hooks + api-zod validators, Zod v3 workaround",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0010-4a00-b000-000000000010",
+    "position": 10,
+    "filepath": "src/pages/slides/Slide10Secrets.tsx",
+    "title": "Secrets & Configuration",
+    "description": "Six Replit Secrets, Shopify Admin via connector (no Admin token in secrets)",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1f2e3d4-0011-4a00-b000-000000000011",
+    "position": 11,
+    "filepath": "src/pages/slides/Slide11WhatNext.tsx",
+    "title": "What's Next",
+    "description": "Three follow-up tracks: E2E test, invoice history, mobile companion app",
+    "speakerNotes": ""
+  }
+]
