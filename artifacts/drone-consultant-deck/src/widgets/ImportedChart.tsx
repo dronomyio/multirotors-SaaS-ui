@@ -71,8 +71,12 @@ function chartRows(chart: ImportedChartModel) {
 
   return categories.map((category, index) => {
     const values = chart.series.map((series) => series.values[index] ?? null);
-    const total = values.reduce(
-      (sum: number, value) => sum + Math.abs(value ?? 0),
+    // Explicit type argument required: tsconfig.base.json sets
+    // strictFunctionTypes: false, so TypeScript picks the non-generic reduce
+    // overload where T = number | null and infers `total` as nullable — even
+    // though the callback is annotated `sum: number` and the seed is 0.
+    const total = values.reduce<number>(
+      (sum, value) => sum + Math.abs(value ?? 0),
       0,
     );
     const scale = percent && total > 0 ? 100 / total : 1;
