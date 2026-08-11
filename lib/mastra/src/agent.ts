@@ -33,7 +33,10 @@ import { ACTIVITY, TASK_QUEUE } from "@workspace/contracts";
  */
 async function runActivity<T>(name: string, input: unknown): Promise<T> {
   const client = await getTemporalClient();
-  return client.workflow.execute<() => Promise<T>>("RunActivity", {
+  // The generic must describe the *workflow's* signature, not the return type:
+  // `() => Promise<T>` tells Temporal the workflow takes no arguments, which
+  // types `args` as `undefined` and rejects everything we pass.
+  return client.workflow.execute<(name: string, input: unknown) => Promise<T>>("RunActivity", {
     taskQueue: TASK_QUEUE.graph,
     workflowId: `activity:${name}:${Date.now()}`,
     args: [name, input],
@@ -53,13 +56,16 @@ const searchCatalog = createTool({
     limit: z.number().int().min(1).max(24).default(12),
   }),
   outputSchema: z.object({ handles: z.array(ComponentHandle) }),
-  execute: async ({ mission, kind, modality, limit }) => {
+  // Mastra passes validated input nested under `context` — not destructured
+  // directly. The published docs still show the flat form; @mastra/core 0.20.2
+  // does not.
+  execute: async ({ context }) => {
     const handles = await runActivity<string[]>(ACTIVITY.searchCandidates, {
-      mission,
-      kinds: [kind],
-      requiredModalities: modality ? [modality] : [],
+      mission: context.mission,
+      kinds: [context.kind],
+      requiredModalities: context.modality ? [context.modality] : [],
       requiredAutonomy: [],
-      limit,
+      limit: context.limit,
     });
     return { handles: handles.map((h) => ComponentHandle.parse(h)) };
   },
@@ -78,12 +84,12 @@ const checkCompatibility = createTool({
     warnings: z.array(z.string()),
     unverifiedPairCount: z.number().int(),
   }),
-  execute: async ({ handles }) => {
+  execute: async ({ context }) => {
     const a = await runActivity<{
       status: "compatible" | "compatible_with_warnings" | "incompatible" | "incomplete";
       findings: { severity: string; message: string }[];
       unverifiedPairs: unknown[];
-    }>(ACTIVITY.assessCompatibility, { handles });
+    }>(ACTIVITY.assessCompatibility, { handles: context.handles });
 
     return {
       status: a.status,
