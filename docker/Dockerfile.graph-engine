@@ -1,0 +1,54 @@
+# Python graph engine: Temporal workers, Neo4j, MySQL cache, Qdrant.
+#
+# Two stages so the runtime image carries no build toolchain. uv is used for
+# dependency resolution because it is an order of magnitude faster than pip on
+# a cold cache, which matters when this rebuilds on every CI run.
+
+FROM python:3.12-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:0.5.14 /uv /usr/local/bin/uv
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never
+
+WORKDIR /app
+
+# Dependency layer first: source edits must not invalidate the install.
+COPY services/graph-engine/pyproject.toml ./
+RUN uv venv /opt/venv && \
+    VIRTUAL_ENV=/opt/venv uv pip install --no-cache \
+      "temporalio>=1.31.0" "pydantic>=2.13.0" "neo4j>=6.2.0" \
+      "sqlalchemy>=2.0.40" "pymysql>=1.1.1" "httpx>=0.28.0" "structlog>=25.1.0" \
+      "qdrant-client>=1.13.0" \
+      "opentelemetry-api>=1.29.0" "opentelemetry-sdk>=1.29.0" \
+      "opentelemetry-exporter-otlp-proto-http>=1.29.0"
+
+COPY services/graph-engine/src /app/src
+RUN VIRTUAL_ENV=/opt/venv uv pip install --no-cache --no-deps -e /app
+
+
+FROM python:3.12-slim AS runtime
+
+# Non-root. A worker that can reach Neo4j and MySQL should not also be able to
+# rewrite its own image.
+RUN groupadd --gid 10001 app && \
+    useradd --uid 10001 --gid app --create-home app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app /app
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/src
+
+WORKDIR /app
+USER app
+
+# Import-only check: proves the venv and PYTHONPATH are wired without needing
+# Neo4j, MySQL, or Temporal to be reachable.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python -c "import graph_engine.temporal.worker" || exit 1
+
+CMD ["graph-worker"]

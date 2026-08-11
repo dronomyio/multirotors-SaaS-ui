@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.turbo
+**/__pycache__
+**/.pytest_cache
+**/.venv
+**/.git
+**/.env
+**/.env.*
+attached_assets
+screenshots
+artifacts/drone-consultant-deck
+artifacts/mockup-sandbox

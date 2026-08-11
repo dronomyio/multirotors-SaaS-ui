@@ -1,0 +1,10 @@
+# Development tuning. Do not ship these values to production.
+limit.maxIDLength:
+  - value: 255
+system.forceSearchAttributesCacheRefreshOnRead:
+  # Makes newly registered search attributes visible immediately instead of
+  # after the cache TTL — otherwise provisioning appears to have silently failed.
+  - value: true
+    constraints: {}
+frontend.enableUpdateWorkflowExecution:
+  - value: true
